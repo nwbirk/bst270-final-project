@@ -140,18 +140,46 @@ We can use these unique values to obtain the corresponding totals from our previ
 
 ```{r, league_party_totals}
 # Create vectors of the party total donations for each of the leagues, based on text matching
-republican_league_totals <- c(sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("MLB", "MLB, NASCAR")]))
-
-print(republican_league_totals)
+# And combine into a single summary table
+tab2_summary <- data.frame(
+    League = c("MLB", "NASCAR", "NBA", "NFL", "NHL", "WNBA"),
+    republican_league_totals = c(sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("MLB", "MLB, NASCAR", "MLB, NHL", "MLB, WNBA", "NBA, MLB")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("MLB, NASCAR", "NASCAR")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("NBA", "NBA, MLB", "NBA, NFL", "NBA, NFL, NHL", "NBA, NHL", "NBA, NHL, WNBA", "NBA, WNBA")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("NFL", "NHL, NFL", "NBA, NFL", "NBA, NFL, NHL")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("NHL", "MLB, NHL", "NBA, NFL, NHL", "NBA, NHL", "NBA, NHL, WNBA", "NHL, NFL")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("WNBA", "NBA, WNBA", "NBA, NHL, WNBA", "MLB, WNBA")])
+                                ),
+    democrat_league_totals = c(sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("MLB", "MLB, NASCAR", "MLB, NHL", "MLB, WNBA", "NBA, MLB")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("MLB, NASCAR", "NASCAR")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("NBA", "NBA, MLB", "NBA, NFL", "NBA, NFL, NHL", "NBA, NHL", "NBA, NHL, WNBA", "NBA, WNBA")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("NFL", "NHL, NFL", "NBA, NFL", "NBA, NFL, NHL")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("NHL", "MLB, NHL", "NBA, NFL, NHL", "NBA, NHL", "NBA, NHL, WNBA", "NHL, NFL")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("WNBA", "NBA, WNBA", "NBA, NHL, WNBA", "MLB, WNBA")])
+                                )                            
+)
+kable(tab2_summary)
 ```
 
 Finally, we can combine this information and compute the total column (by simply summming Republican and Democrat) to obtain the totals.
 
 ```{r, display_table2}
-# Display the frequency table of League values
-kable(table(sports_summary2$League))
+# Mutate to add new column which sums republican and democrat donations
+tab2 <- tab2_summary %>% mutate(Total = republican_league_totals + democrat_league_totals)
+
+# Update column names to reflect article
+colnames(tab2) <- c("League", "To Republicans", "To Democrats", "Total")
+
+# Reorder rows to match article
+# This is done manually,
+#tab2 <- tab2[c(1, 3, 5, 4, 6, 2),]
+# But can also assume that the table is sorted by the Total column in descending order
+tab2 <- tab2 %>% arrange(desc(Total))
+
+# Display final table
+kable(tab2)
 ```
 
 # Conclusion
 
-Some challenges to reproducibility include the fact that more additional parties are included in the dataset than are reported in the paper. This is somewhat addressed in the figure captions, but it was not immediately clear to me where categories such as "Bipartisan, but mostly Republican" should be included or excluded from the Republican total amounts (and same for Democrat).
+Some challenges to reproducibility include the fact that more additional parties are included in the dataset than are reported in the paper. This is somewhat addressed in the figure captions, but it was not immediately clear to me where categories such as "Bipartisan, but mostly Republican" should be included or excluded from the Republican total amounts (and same for Democrat). Further, a slight challenge in reproducing Table 2 was in the encoding of the Leagues as a string that included all leagues represented. While this could be helpful in some contexts, it could have been easier for the coding to have a series of 6 binary variables that instead specify whether the corresponding donor owns a team in a given league. Additionally, I did not find it immediately clear whether the "Total" column in Table 2 corresponded to the total across all parties, or just the sum of Republican and Democrat amounts (though this was not difficult to check through a 'trial and error' appoach).
