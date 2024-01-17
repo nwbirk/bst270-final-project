@@ -73,18 +73,26 @@ kable(sports_summary)
 
 We can see from the above that there are some extra political parties that do not appear in the figure itself. Further, it may be helpful to take an additional step to obtain the proportions of donations for the given year, rather than the raw amount. We make these final processing steps below and display the resulting table:
 
-```{r summarize_fig1_more}
+```{r summarize_fig1_more, message = FALSE}
 # Create an even smaller summary dataset that includes the proportion
-# Calculated as amount / total
+# Calculated as row amount / annual total
 sports_annual_totals <- sports_summary %>% group_by(Election.Year) %>%
   summarize(annual_total = sum(total_donated))
-# Join these values as new column and then create proportion column
+# Join these values as new annual total column and then create proportion column
 sports_summary <- inner_join(sports_summary, sports_annual_totals)
 sports_summary <- sports_summary %>% mutate(donate_prop = total_donated/annual_total) %>% filter(Party %in% c("Republican", "Democrat"))
 
+# Display table fo visual inspection
 kable(sports_summary)
 ```
 
+Finally, we see that we have the values needed to recreate the figure, and proceed to do so:
+
+```{r plot_fig1}
+# Plot figure 1
+sports_summary %>% 
+  ggplot(aes(Election.Year, donate_prop, fill = Party)) + geom_bar(stat = "identity")
+```
 
 
 # Part 2: Table 2
