@@ -82,7 +82,7 @@ sports_annual_totals <- sports_summary %>% group_by(Election.Year) %>%
 sports_summary <- inner_join(sports_summary, sports_annual_totals)
 sports_summary <- sports_summary %>% mutate(donate_prop = total_donated/annual_total) %>% filter(Party %in% c("Republican", "Democrat"))
 
-# Display table fo visual inspection
+# Display table for visual inspection
 kable(sports_summary)
 ```
 
@@ -90,13 +90,68 @@ Finally, we see that we have the values needed to recreate the figure, and proce
 
 ```{r plot_fig1}
 # Plot figure 1
+# Election Year is made a factor and donate_pop into a value between 0 and 100 for purely aesthetic reasons
 sports_summary %>% 
-  ggplot(aes(Election.Year, donate_prop, fill = Party)) + geom_bar(stat = "identity")
+  ggplot(aes(as.factor(Election.Year), round(100*donate_prop), fill = Party)) + geom_bar(stat = "identity") +
+  xlab("") + ylab("") + ggtitle("Team owners give largely to the GOP") +
+  scale_fill_manual(values = c("blue", "red"))
 ```
 
+On a visual basis, the values in the plot seem to roughly correspond to the values of each bar in the original article. For completeness, we can also attempt to reproduce the value from the figure caption, stating that "Giants owner Charles Johnson's total contributions make up 32.1% of all republican contributions"
+
+```{r johnson_prop}
+# Get the total sum of Republican donations
+republican_summary <- sports_summary %>% filter(Party == "Republican")
+republican_total <- sum(republican_summary$total_donated)
+
+# Get the total sum of Johnson's donations
+johnson_summary <- sports %>% filter(Owner == "Charles Johnson", Party == "Republican")
+johnson_total <- sum(johnson_summary$donate_amount)
+
+print(round(100*johnson_total/republican_total, 1))
+```
+
+Indeed, the computed percentage matches the reported amount exactly.
 
 # Part 2: Table 2
 
 We now attempt to reproduce the second table that appears in the article, titled "MLB owners have donated the most"
 
+To begin, we will need to summarize the total donations by league and party, rather than year.
 
+```{r, tab2_summary}
+# We will reuse the donate_amount variable that we created previously
+# Similar summary table needed as before, but split by league instead of year
+sports_summary2 <- sports %>% group_by(League, Party) %>%
+  summarize(total_donated = sum(donate_amount))
+
+# Display the resulting table
+kable(sports_summary2)
+```
+
+This initial version of the table reveals that there are some categories which include multiple leagues. To recreate the table exactly from the article, we will need to instead use some indicator that a row contains a certain league. This is made somewhat more challenging than a standard text search due to the presence of "NBA" and "WNBA" as distinct leagues. For our understanding, the different values of "League" are displayed below
+
+```{r, league_summary}
+# Display the frequency table of League values
+kable(table(sports_summary2$League))
+```
+
+We can use these unique values to obtain the corresponding totals from our previous summary table as follows:
+
+```{r, league_party_totals}
+# Create vectors of the party total donations for each of the leagues, based on text matching
+republican_league_totals <- c(sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("MLB", "MLB, NASCAR")]))
+
+print(republican_league_totals)
+```
+
+Finally, we can combine this information and compute the total column (by simply summming Republican and Democrat) to obtain the totals.
+
+```{r, display_table2}
+# Display the frequency table of League values
+kable(table(sports_summary2$League))
+```
+
+# Conclusion
+
+Some challenges to reproducibility include the fact that more additional parties are included in the dataset than are reported in the paper. This is somewhat addressed in the figure captions, but it was not immediately clear to me where categories such as "Bipartisan, but mostly Republican" should be included or excluded from the Republican total amounts (and same for Democrat).
