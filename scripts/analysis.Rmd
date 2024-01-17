@@ -71,6 +71,22 @@ sports_summary <- sports %>% group_by(Election.Year, Party) %>%
 kable(sports_summary)
 ```
 
+We can see from the above that there are some extra political parties that do not appear in the figure itself. Further, it may be helpful to take an additional step to obtain the proportions of donations for the given year, rather than the raw amount. We make these final processing steps below and display the resulting table:
+
+```{r summarize_fig1_more}
+# Create an even smaller summary dataset that includes the proportion
+# Calculated as amount / total
+sports_annual_totals <- sports_summary %>% group_by(Election.Year) %>%
+  summarize(annual_total = sum(total_donated))
+# Join these values as new column and then create proportion column
+sports_summary <- inner_join(sports_summary, sports_annual_totals)
+sports_summary <- sports_summary %>% mutate(donate_prop = total_donated/annual_total) %>% filter(Party %in% c("Republican", "Democrat"))
+
+kable(sports_summary)
+```
+
+
+
 # Part 2: Table 2
 
 We now attempt to reproduce the second table that appears in the article, titled "MLB owners have donated the most"
