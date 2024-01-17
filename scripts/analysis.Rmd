@@ -15,9 +15,42 @@ The aim of the following project is to recreate one table and one figure from th
 
 ["Inside The Political Donation History Of Wealthy Sports Owners"](https://fivethirtyeight.com/features/inside-the-political-donation-history-of-wealthy-sports-owners/)
 
-```{r load_package_and_data}
+
+# Preparation
+
+To proceed with the analysis, we will first need to load any necessary packages and import the dataset from online. If the dataset is available locally, this option will instead be used to import the dataset.
+
+```{r load_package_and_data, message = FALSE}
+# Install packages if they are missing, otherwise load
+if (!require('tidyverse')) install.packages('tidyverse')
+if (!require('ggplot2')) install.packages('ggplot2')
+if (!require('data.table')) install.packages('data.table')
+if (!require('RCurl')) install.packages('RCurl')
+
+# Import dataset locally, if available
+if (file.exists("../data/sports-political-donations.csv")){
+    sports <- read.csv("../data/sports-political-donations.csv")
+} else {
+    # Otherwise, import dataset from online
+    sports <- fread(getURL("https://github.com/fivethirtyeight/data/blob/master/sports-political-donations/sports-political-donations.csv"))
+}
+
 
 ```
 
+
+# Part 1: Figure 1
+
+To begin, we attempt to recreate the first figure that appears in the article, titled "Team owners give largely to the GOP".
+
+From an inspection of the data, one can see that some processing is required to obtain the values needed to reproduce the figure. In particular, we will first need to process the `donate_amount` colunn from a string (including symbols such as $ and ,) to a numeric value.
+
+```{r make_donation_numeric}
+head(sports)
+```
+
+# Part 2: Table 2
+
+We now attempt to reproduce the second table that appears in the article, titled "MLB owners have donated the most"
 
 
