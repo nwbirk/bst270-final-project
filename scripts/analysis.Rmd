@@ -24,15 +24,16 @@ To proceed with the analysis, we will first need to load any necessary packages 
 # Install packages if they are missing, otherwise load
 if (!require('tidyverse')) install.packages('tidyverse')
 if (!require('ggplot2')) install.packages('ggplot2')
-if (!require('data.table')) install.packages('data.table')
 if (!require('RCurl')) install.packages('RCurl')
+if (!require('knitr')) install.packages('knitr')
 
 # Import dataset locally, if available
 if (file.exists("../data/sports-political-donations.csv")){
     sports <- read.csv("../data/sports-political-donations.csv")
 } else {
-    # Otherwise, import dataset from online
-    sports <- fread(getURL("https://github.com/fivethirtyeight/data/blob/master/sports-political-donations/sports-political-donations.csv"))
+    # Otherwise, import dataset from raw github file online
+   sports_url <- getURL("https://raw.githubusercontent.com/fivethirtyeight/data/master/sports-political-donations/sports-political-donations.csv")
+   sports <- read.csv(text = sports_url)
 }
 
 
@@ -43,10 +44,31 @@ if (file.exists("../data/sports-political-donations.csv")){
 
 To begin, we attempt to recreate the first figure that appears in the article, titled "Team owners give largely to the GOP".
 
+```{r first_inspect}
+kable(head(sports))
+```
+
 From an inspection of the data, one can see that some processing is required to obtain the values needed to reproduce the figure. In particular, we will first need to process the `donate_amount` colunn from a string (including symbols such as $ and ,) to a numeric value.
 
-```{r make_donation_numeric}
-head(sports)
+```{r clean_amount}
+# Process the donation amount by removing $ and , symbols
+sports$donate_amount <- str_replace(sports$Amount, "\\$", "")
+sports$donate_amount <- str_replace(sports$donate_amount, "\\,", "")
+# Second line needed for amounts which originally included multiple "," symbols
+sports$donate_amount <- str_replace(sports$donate_amount, "\\,", "")
+# Convert from character to numeric
+sports$donate_amount <- as.numeric(sports$donate_amount)
+```
+
+Now that the donation amount has been made numeric (as the column `donate_amount`), we can proceed. To reproduce the figure, we will want to create a summary within each election year and party. We will use the `group_by` function to get the total donations for each party-election year pair. We will then display the table to ensure we have the correct categories.
+
+```{r summarize_fig1}
+# Need to summarize by party, year to get figure values
+sports_summary <- sports %>% group_by(Election.Year, Party) %>%
+  summarize(total_donated = sum(donate_amount))
+
+# We can see from inspecting this summary table that there are some extra categories
+kable(sports_summary)
 ```
 
 # Part 2: Table 2
