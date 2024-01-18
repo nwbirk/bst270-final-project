@@ -351,7 +351,7 @@ display: none;
 
 <h1 class="title toc-ignore">BST 270 Final Project</h1>
 <h4 class="author">Nick Birk</h4>
-<h4 class="date">1/17/2024</h4>
+<h4 class="date">1/18/2024</h4>
 
 </div>
 
@@ -368,8 +368,15 @@ The Political Donation History Of Wealthy Sports Owners”</a></p>
 <p>To proceed with the analysis, we will first need to load any
 necessary packages and import the dataset from online. If the dataset is
 available locally, this option will instead be used to import the
-dataset.</p>
-<pre class="r"><code># Install packages if they are missing, otherwise load
+dataset. Note that the package <code>renv</code> is used to create and
+environment that saves the exact versions of each package used in the
+analysis. For completeness, the session info is also displayed at the
+end of this code chunk.</p>
+<pre class="r"><code># Begin by installing renv and setting up environment
+if (!require(&#39;renv&#39;)) install.packages(&#39;renv&#39;)
+renv::init()
+
+# Install packages if they are missing, otherwise load
 if (!require(&#39;tidyverse&#39;)) install.packages(&#39;tidyverse&#39;)
 if (!require(&#39;ggplot2&#39;)) install.packages(&#39;ggplot2&#39;)
 if (!require(&#39;RCurl&#39;)) install.packages(&#39;RCurl&#39;)
@@ -382,13 +389,53 @@ if (file.exists(&quot;../data/sports-political-donations.csv&quot;)){
     # Otherwise, import dataset from raw github file online
    sports_url &lt;- getURL(&quot;https://raw.githubusercontent.com/fivethirtyeight/data/master/sports-political-donations/sports-political-donations.csv&quot;)
    sports &lt;- read.csv(text = sports_url)
-}</code></pre>
+}
+
+# Display session information
+sessionInfo()</code></pre>
+<pre><code>## R version 4.3.1 (2023-06-16)
+## Platform: x86_64-apple-darwin20 (64-bit)
+## Running under: macOS Ventura 13.1
+## 
+## Matrix products: default
+## BLAS:   /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRblas.0.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRlapack.dylib;  LAPACK version 3.11.0
+## 
+## locale:
+## [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+## 
+## time zone: America/New_York
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices datasets  utils     methods   base     
+## 
+## other attached packages:
+##  [1] knitr_1.45      RCurl_1.98-1.14 lubridate_1.9.2 forcats_1.0.0  
+##  [5] stringr_1.5.0   dplyr_1.1.2     purrr_1.0.2     readr_2.1.4    
+##  [9] tidyr_1.3.0     tibble_3.2.1    ggplot2_3.4.4   tidyverse_2.0.0
+## [13] renv_1.0.3     
+## 
+## loaded via a namespace (and not attached):
+##  [1] gtable_0.3.3     jsonlite_1.8.4   compiler_4.3.1   tidyselect_1.2.0
+##  [5] bitops_1.0-7     jquerylib_0.1.4  scales_1.2.1     yaml_2.3.7      
+##  [9] fastmap_1.1.1    R6_2.5.1         generics_0.1.3   munsell_0.5.0   
+## [13] tzdb_0.3.0       bslib_0.4.2      pillar_1.9.0     rlang_1.1.1     
+## [17] utf8_1.2.3       stringi_1.7.12   cachem_1.0.7     xfun_0.39       
+## [21] sass_0.4.5       timechange_0.2.0 cli_3.6.1        withr_2.5.0     
+## [25] magrittr_2.0.3   digest_0.6.31    grid_4.3.1       rstudioapi_0.14 
+## [29] hms_1.1.3        lifecycle_1.0.3  vctrs_0.6.3      evaluate_0.20   
+## [33] glue_1.6.2       fansi_1.0.4      colorspace_2.1-0 rmarkdown_2.21  
+## [37] tools_4.3.1      pkgconfig_2.0.3  htmltools_0.5.5</code></pre>
 </div>
 <div id="part-1-figure-1" class="section level1">
 <h1>Part 1: Figure 1</h1>
 <p>To begin, we attempt to recreate the first figure that appears in the
-article, titled “Team owners give largely to the GOP”.</p>
-<pre class="r"><code>kable(head(sports))</code></pre>
+article, titled “Team owners give largely to the GOP”. To begin, we will
+observe the first few rows of the dataset to gain an understanding of
+what steps we will need to take to process the dataset.</p>
+<pre class="r"><code># Print first few rows of the dataset to understand features of the data
+kable(head(sports))</code></pre>
 <table>
 <colgroup>
 <col width="13%" />
@@ -470,27 +517,26 @@ article, titled “Team owners give largely to the GOP”.</p>
 <p>From an inspection of the data, one can see that some processing is
 required to obtain the values needed to reproduce the figure. In
 particular, we will first need to process the <code>donate_amount</code>
-colunn from a string (including symbols such as $ and ,) to a numeric
+column from a string (removing symbols such as $ and ,) to a numeric
 value.</p>
 <pre class="r"><code># Process the donation amount by removing $ and , symbols
 sports$donate_amount &lt;- str_replace(sports$Amount, &quot;\\$&quot;, &quot;&quot;)
 sports$donate_amount &lt;- str_replace(sports$donate_amount, &quot;\\,&quot;, &quot;&quot;)
-# Second line needed for amounts which originally included multiple &quot;,&quot; symbols
+# Second call needed for amounts which originally included two &quot;,&quot; symbols
 sports$donate_amount &lt;- str_replace(sports$donate_amount, &quot;\\,&quot;, &quot;&quot;)
 # Convert from character to numeric
 sports$donate_amount &lt;- as.numeric(sports$donate_amount)</code></pre>
 <p>Now that the donation amount has been made numeric (as the column
 <code>donate_amount</code>), we can proceed. To reproduce the figure, we
-will want to create a summary within each election year and party. We
-will use the <code>group_by</code> function to get the total donations
-for each party-election year pair. We will then display the table to
-ensure we have the correct categories.</p>
+will want to create a summary of amount donated within each election
+year and party. We will use the <code>group_by</code> function to get
+the total donations for each party-election year pair. We will then
+display the table to ensure we have the correct categories.</p>
 <pre class="r"><code># Need to summarize by party, year to get figure values
 sports_summary &lt;- sports %&gt;% group_by(Election.Year, Party) %&gt;%
-  summarize(total_donated = sum(donate_amount))</code></pre>
-<pre><code>## `summarise()` has grouped output by &#39;Election.Year&#39;. You can override using the
-## `.groups` argument.</code></pre>
-<pre class="r"><code># We can see from inspecting this summary table that there are some extra categories
+  summarize(total_donated = sum(donate_amount))
+
+# We can see from inspecting this summary table that there are some extra categories which do not appear in the figure
 kable(sports_summary)</code></pre>
 <table>
 <thead>
@@ -606,10 +652,13 @@ kable(sports_summary)</code></pre>
 <p>We can see from the above that there are some extra political parties
 that do not appear in the figure itself. Further, it may be helpful to
 take an additional step to obtain the proportions of donations for the
-given year, rather than the raw amount. We make these final processing
-steps below and display the resulting table:</p>
+given year, rather than the raw amount, since the figure proportions do
+not add up to 100% because of the excluded parties. We make these final
+processing steps below and display the resulting table:</p>
 <pre class="r"><code># Create an even smaller summary dataset that includes the proportion
 # Calculated as row amount / annual total
+
+# First, annual total across all parties is stored in a small table
 sports_annual_totals &lt;- sports_summary %&gt;% group_by(Election.Year) %&gt;%
   summarize(annual_total = sum(total_donated))
 # Join these values as new annual total column and then create proportion column
@@ -686,15 +735,16 @@ sports_summary %&gt;%
 to the values of each bar in the original article. For completeness, we
 can also attempt to reproduce the value from the figure caption, stating
 that “Giants owner Charles Johnson’s total contributions make up 32.1%
-of all republican contributions”</p>
-<pre class="r"><code># Get the total sum of Republican donations
+of all Republican contributions”</p>
+<pre class="r"><code># Get the total sum of Republican donations across all years
 republican_summary &lt;- sports_summary %&gt;% filter(Party == &quot;Republican&quot;)
 republican_total &lt;- sum(republican_summary$total_donated)
 
-# Get the total sum of Johnson&#39;s donations
+# Get the total sum of Johnson&#39;s donations to Republicans across all years
 johnson_summary &lt;- sports %&gt;% filter(Owner == &quot;Charles Johnson&quot;, Party == &quot;Republican&quot;)
 johnson_total &lt;- sum(johnson_summary$donate_amount)
 
+# Print the proportion as a percentage, rounded to 1 decimal place.
 print(round(100*johnson_total/republican_total, 1))</code></pre>
 <pre><code>## [1] 32.1</code></pre>
 <p>Indeed, the computed percentage matches the reported amount
@@ -703,16 +753,15 @@ exactly.</p>
 <div id="part-2-table-2" class="section level1">
 <h1>Part 2: Table 2</h1>
 <p>We now attempt to reproduce the second table that appears in the
-article, titled “MLB owners have donated the most”</p>
+article, titled “MLB owners have donated the most”.</p>
 <p>To begin, we will need to summarize the total donations by league and
 party, rather than year.</p>
 <pre class="r"><code># We will reuse the donate_amount variable that we created previously
-# Similar summary table needed as before, but split by league instead of year
+# Similar summary table needed as before, but split by league and party instead of year and party
 sports_summary2 &lt;- sports %&gt;% group_by(League, Party) %&gt;%
-  summarize(total_donated = sum(donate_amount))</code></pre>
-<pre><code>## `summarise()` has grouped output by &#39;League&#39;. You can override using the
-## `.groups` argument.</code></pre>
-<pre class="r"><code># Display the resulting table
+  summarize(total_donated = sum(donate_amount))
+
+# Display the resulting table
 kable(sports_summary2)</code></pre>
 <table>
 <thead>
@@ -1014,9 +1063,9 @@ kable(sports_summary2)</code></pre>
 categories which include multiple leagues. To recreate the table exactly
 from the article, we will need to instead use some indicator that a row
 contains a certain league. This is made somewhat more challenging than a
-standard text search due to the presence of “NBA” and “WNBA” as distinct
-leagues. For our understanding, the different values of “League” are
-displayed below</p>
+standard text matching due to the presence of both “NBA” and “WNBA” as
+distinct leagues. For our understanding of how to proceed, the different
+values of “League” are displayed below:</p>
 <pre class="r"><code># Display the frequency table of League values
 kable(table(sports_summary2$League))</code></pre>
 <table>
@@ -1157,7 +1206,10 @@ kable(tab2_summary)</code></pre>
 </tbody>
 </table>
 <p>Finally, we can combine this information and compute the total column
-(by simply summming Republican and Democrat) to obtain the totals.</p>
+(by simply summming Republican and Democrat) to obtain the league total
+donation amounts. We also note that the table appears to be displayed in
+descending order of total amounts donated, so we follow the same
+convention.</p>
 <pre class="r"><code># Mutate to add new column which sums republican and democrat donations
 tab2 &lt;- tab2_summary %&gt;% mutate(Total = republican_league_totals + democrat_league_totals)
 
@@ -1165,7 +1217,7 @@ tab2 &lt;- tab2_summary %&gt;% mutate(Total = republican_league_totals + democra
 colnames(tab2) &lt;- c(&quot;League&quot;, &quot;To Republicans&quot;, &quot;To Democrats&quot;, &quot;Total&quot;)
 
 # Reorder rows to match article
-# This is done manually,
+# This can be done manually as
 #tab2 &lt;- tab2[c(1, 3, 5, 4, 6, 2),]
 # But can also assume that the table is sorted by the Total column in descending order
 tab2 &lt;- tab2 %&gt;% arrange(desc(Total))
@@ -1220,24 +1272,28 @@ kable(tab2)</code></pre>
 </tr>
 </tbody>
 </table>
+<p>Indeed, the values in the table appear to match the original article,
+including the ordering of rows.</p>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
-<p>Some challenges to reproducibility include the fact that more
-additional parties are included in the dataset than are reported in the
-paper. This is somewhat addressed in the figure captions, but it was not
-immediately clear to me where categories such as “Bipartisan, but mostly
+<p>I was able to replicate the main findings from both the figure and
+table, though some aesthetic differences remain. Some challenges to
+reproducibility include the fact that more parties are included in the
+dataset than are reported in the tables/figures from the paper. This is
+somewhat addressed in the figure captions, but it was not immediately
+clear to me whether categories such as “Bipartisan, but mostly
 Republican” should be included or excluded from the Republican total
 amounts (and same for Democrat). Further, a slight challenge in
 reproducing Table 2 was in the encoding of the Leagues as a string that
 included all leagues represented. While this could be helpful in some
-contexts, it could have been easier for the coding to have a series of 6
-binary variables that instead specify whether the corresponding donor
-owns a team in a given league. Additionally, I did not find it
-immediately clear whether the “Total” column in Table 2 corresponded to
-the total across all parties, or just the sum of Republican and Democrat
-amounts (though this was not difficult to check through a ‘trial and
-error’ appoach).</p>
+contexts, it could have been easier for the coding to also have a series
+of 6 binary variables that specify whether the corresponding donor owns
+a team in a given league. Additionally, I did not find it immediately
+clear whether the “Total” column in Table 2 corresponded to the total
+across all parties, or just the sum of Republican and Democrat amounts
+(though a visual check of the numbers strongly suggested that the Total
+was indeed just the sum of Republican and Democrat amounts).</p>
 </div>
 
 
