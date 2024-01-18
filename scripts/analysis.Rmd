@@ -189,8 +189,17 @@ tab2 <- tab2 %>% arrange(desc(Total))
 kable(tab2)
 ```
 
-Indeed, the values in the table appear to match the original article, including the ordering of rows.
+The values in the table appear to mostly match the original article, including the ordering of rows, with the exception of the Republican donation amount for the NBA (and thus, the Total as well). The Republican amount displayed in the article is 8,372,300,  while the amount we have computed is 8,323,600. We can check the summary table for any donation amounts less than this difference to see if this illuminates any potential missed rows as the reason for the discrepancy:
+
+```{r, investigate_table2}
+# filter summary table to include only rows from the summary table with donation amount less than the observed difference
+tab2_check <- sports_summary2 %>% filter(total_donated <= 8372300 - 8323600)
+
+kable(tab2_check)
+```
+
+We can see that this returns 16 rows, though none seem to exactly match the missing donation amount difference (`r 8372300 - 8323600`). It is interesting to note that the amount in the Democrat column and all other rows returned identical values as the article, so it is not entirely clear why this discrepancy has emerged. 
 
 # Conclusion
 
-I was able to replicate the main findings from both the figure and table, though some aesthetic differences remain. Some challenges to reproducibility include the fact that more parties are included in the dataset than are reported in the tables/figures from the paper. This is somewhat addressed in the figure captions, but it was not immediately clear to me whether categories such as "Bipartisan, but mostly Republican" should be included or excluded from the Republican total amounts (and same for Democrat). Further, a slight challenge in reproducing Table 2 was in the encoding of the Leagues as a string that included all leagues represented. While this could be helpful in some contexts, it could have been easier for the coding to also have a series of 6 binary variables that specify whether the corresponding donor owns a team in a given league. Additionally, I did not find it immediately clear whether the "Total" column in Table 2 corresponded to the total across all parties, or just the sum of Republican and Democrat amounts (though a visual check of the numbers strongly suggested that the Total was indeed just the sum of Republican and Democrat amounts).
+I was able to replicate the main findings from both the figure and table, though the NBA donation amounts and some aesthetic differences remain. Some challenges to reproducibility include the fact that more parties are included in the dataset than are reported in the tables/figures from the paper. This is somewhat addressed in the figure captions, but it was not immediately clear to me whether categories such as "Bipartisan, but mostly Republican" should be included or excluded from the Republican total amounts (and same for Democrat). Further, a slight challenge in reproducing Table 2 was in the encoding of the Leagues as a string that included all leagues represented. While this could be helpful in some contexts, it could have been easier for the coding to also have a series of 6 binary variables that specify whether the corresponding donor owns a team in a given league. Additionally, I did not find it immediately clear whether the "Total" column in Table 2 corresponded to the total across all parties, or just the sum of Republican and Democrat amounts (though a visual check of the numbers strongly suggested that the Total was indeed just the sum of Republican and Democrat amounts).
