@@ -18,9 +18,13 @@ The aim of the following project is to recreate one table and one figure from th
 
 # Preparation
 
-To proceed with the analysis, we will first need to load any necessary packages and import the dataset from online. If the dataset is available locally, this option will instead be used to import the dataset.
+To proceed with the analysis, we will first need to load any necessary packages and import the dataset from online. If the dataset is available locally, this option will instead be used to import the dataset. Note that the package `renv` is used to create and environment that saves the exact versions of each package used in the analysis.
 
 ```{r load_package_and_data, message = FALSE}
+# Begin by installing renv and setting up environment
+if (!require('renv')) install.packages('renv')
+renv::init()
+
 # Install packages if they are missing, otherwise load
 if (!require('tidyverse')) install.packages('tidyverse')
 if (!require('ggplot2')) install.packages('ggplot2')
