@@ -198,7 +198,7 @@ tab2_check <- sports_summary2 %>% filter(total_donated <= 8372300 - 8323600)
 kable(tab2_check)
 ```
 
-We can see that this returns 16 rows, though none seem to exactly match the missing donation amount difference (`r 8372300 - 8323600`). It is interesting to note that the amount in the Democrat column and all other rows returned identical values as the article, so it is not entirely clear why this discrepancy has emerged. 
+We can see that this returns 16 rows, though none seem to exactly match the missing donation amount difference (`r 8372300 - 8323600`). It is interesting to note that the amount in the Democrat column and all other rows returned identical values as the article, so it is not entirely clear why this discrepancy has emerged. One possible reason could be if there was a difference in how one of the "Bipartisan, but mostly Republican" PACs was coded between versions of the dataset (if multiple versions exist), though this is mostly speculative. As another additional check, I summed together all rows from the above table that had a non-0 digit in the hundreds spot, and obtained the value 8100+5400+33400+2800 = `r 8100+5400+33400+2800`, which is too large by 1000 dollars. However, no other combination of the digits from this spot will achieve a 7 in the hundreds place, further obscuring where the discrepancy may have arisen. If it was an error in my own data processing, it is likely to have occurred during or before the generation of the `sports_summary2` table, such as when initially processing the `donate_amount` column (though this still does not make it clear why the Democrat value would match the article regardless).
 
 # Conclusion
 
