@@ -725,7 +725,7 @@ kable(sports_summary)</code></pre>
 <p>Finally, we see that we have the values needed to recreate the
 figure, and proceed to do so:</p>
 <pre class="r"><code># Plot figure 1
-# Election Year is made a factor and donate_pop into a value between 0 and 100 for purely aesthetic reasons
+# Election Year is made a factor and donate_prop into a value between 0 and 100 for purely aesthetic reasons
 sports_summary %&gt;% 
   ggplot(aes(as.factor(Election.Year), round(100*donate_prop), fill = Party)) + geom_bar(stat = &quot;identity&quot;) +
   xlab(&quot;&quot;) + ylab(&quot;&quot;) + ggtitle(&quot;Team owners give largely to the GOP&quot;) +
@@ -1060,12 +1060,15 @@ kable(sports_summary2)</code></pre>
 </tbody>
 </table>
 <p>This initial version of the table reveals that there are some
-categories which include multiple leagues. To recreate the table exactly
-from the article, we will need to instead use some indicator that a row
-contains a certain league. This is made somewhat more challenging than a
-standard text matching due to the presence of both “NBA” and “WNBA” as
-distinct leagues. For our understanding of how to proceed, the different
-values of “League” are displayed below:</p>
+categories which include multiple leagues, and that additional parties
+are included that do not appear in the article’s table. To recreate the
+table exactly from the article, we will need to use some indicator that
+a row contains a given league. This is made somewhat more challenging
+than a standard text matching due to the presence of both “NBA” and
+“WNBA” as distinct leagues, and that some categories can contain
+multiple leagues (and thus should be double- or triple-counted). For our
+understanding of how to proceed, the different values of “League” are
+displayed below:</p>
 <pre class="r"><code># Display the frequency table of League values
 kable(table(sports_summary2$League))</code></pre>
 <table>
@@ -1148,6 +1151,7 @@ from our previous summary table as follows:</p>
 # And combine into a single summary table
 tab2_summary &lt;- data.frame(
     League = c(&quot;MLB&quot;, &quot;NASCAR&quot;, &quot;NBA&quot;, &quot;NFL&quot;, &quot;NHL&quot;, &quot;WNBA&quot;),
+    # Match each of the League combinations for Republican donations
     republican_league_totals = c(sum(sports_summary2$total_donated[sports_summary2$Party == &quot;Republican&quot; &amp; sports_summary2$League %in% c(&quot;MLB&quot;, &quot;MLB, NASCAR&quot;, &quot;MLB, NHL&quot;, &quot;MLB, WNBA&quot;, &quot;NBA, MLB&quot;)]),
                               sum(sports_summary2$total_donated[sports_summary2$Party == &quot;Republican&quot; &amp; sports_summary2$League %in% c(&quot;MLB, NASCAR&quot;, &quot;NASCAR&quot;)]),
                               sum(sports_summary2$total_donated[sports_summary2$Party == &quot;Republican&quot; &amp; sports_summary2$League %in% c(&quot;NBA&quot;, &quot;NBA, MLB&quot;, &quot;NBA, NFL&quot;, &quot;NBA, NFL, NHL&quot;, &quot;NBA, NHL&quot;, &quot;NBA, NHL, WNBA&quot;, &quot;NBA, WNBA&quot;)]),
@@ -1155,6 +1159,7 @@ tab2_summary &lt;- data.frame(
                               sum(sports_summary2$total_donated[sports_summary2$Party == &quot;Republican&quot; &amp; sports_summary2$League %in% c(&quot;NHL&quot;, &quot;MLB, NHL&quot;, &quot;NBA, NFL, NHL&quot;, &quot;NBA, NHL&quot;, &quot;NBA, NHL, WNBA&quot;, &quot;NHL, NFL&quot;)]),
                               sum(sports_summary2$total_donated[sports_summary2$Party == &quot;Republican&quot; &amp; sports_summary2$League %in% c(&quot;WNBA&quot;, &quot;NBA, WNBA&quot;, &quot;NBA, NHL, WNBA&quot;, &quot;MLB, WNBA&quot;)])
                                 ),
+    # Repeat for Democrat donations
     democrat_league_totals = c(sum(sports_summary2$total_donated[sports_summary2$Party == &quot;Democrat&quot; &amp; sports_summary2$League %in% c(&quot;MLB&quot;, &quot;MLB, NASCAR&quot;, &quot;MLB, NHL&quot;, &quot;MLB, WNBA&quot;, &quot;NBA, MLB&quot;)]),
                               sum(sports_summary2$total_donated[sports_summary2$Party == &quot;Democrat&quot; &amp; sports_summary2$League %in% c(&quot;MLB, NASCAR&quot;, &quot;NASCAR&quot;)]),
                               sum(sports_summary2$total_donated[sports_summary2$Party == &quot;Democrat&quot; &amp; sports_summary2$League %in% c(&quot;NBA&quot;, &quot;NBA, MLB&quot;, &quot;NBA, NFL&quot;, &quot;NBA, NFL, NHL&quot;, &quot;NBA, NHL&quot;, &quot;NBA, NHL, WNBA&quot;, &quot;NBA, WNBA&quot;)]),
@@ -1274,15 +1279,15 @@ kable(tab2)</code></pre>
 </table>
 <p>The values in the table appear to mostly match the original article,
 including the ordering of rows, with the exception of the Republican
-donation amount for the NBA (and thus, the Total as well). The
-Republican amount displayed in the article is 8,372,300, while the
+donation amount for the NBA (and thus, the Total for this row as well).
+The Republican amount displayed in the article is 8,372,300, while the
 amount we have computed is 8,323,600. We can check the summary table for
-any donation amounts less than this difference to see if this
-illuminates any potential missed rows as the reason for the
-discrepancy:</p>
+any donation amounts less than this difference to see if this reveals
+any potential missed rows as the reason for the discrepancy:</p>
 <pre class="r"><code># filter summary table to include only rows from the summary table with donation amount less than the observed difference
 tab2_check &lt;- sports_summary2 %&gt;% filter(total_donated &lt;= 8372300 - 8323600)
 
+# Display
 kable(tab2_check)</code></pre>
 <table>
 <thead>
@@ -1425,25 +1430,26 @@ kable(tab2_check)</code></pre>
 </tr>
 </tbody>
 </table>
-<p>We can see that this returns 16 rows, though none seem to exactly
-match the missing donation amount difference (4.87^{4}). It is
+<p>We can see that this filtering returns 16 rows, though none seem to
+exactly match the missing donation amount difference (4.87^{4}). It is
 interesting to note that the amount in the Democrat column and all other
-rows returned identical values as the article, so it is not entirely
-clear why this discrepancy has emerged. One possible reason could be if
-there was a difference in how one of the “Bipartisan, but mostly
-Republican” PACs was coded between versions of the dataset (if multiple
-versions exist), though this is mostly speculative. As another
-additional check, I summed together all rows from the above table that
-had a non-0 digit in the hundreds spot, and obtained the value
-8100+5400+33400+2800 = 4.97^{4}, which is too large by 1000 dollars.
-However, no other combination of the digits from this spot will achieve
-a 7 in the hundreds place, further obscuring where the discrepancy may
-have arisen. If it was an error in my own data processing, it is likely
-to have occurred during or before the generation of the
-<code>sports_summary2</code> table, such as when initially processing
-the <code>donate_amount</code> column (though this still does not make
-it clear why the Democrat value would match the article while Republican
-does not, and only for the NBA).</p>
+rows of the table returned identical values as the article, so it is not
+entirely clear why this discrepancy has emerged. One possible reason
+could be if there was a difference in how one of the “Bipartisan, but
+mostly Republican” PACs was coded between versions of the dataset (if
+multiple versions exist), though this is mostly speculative.</p>
+<p>As another additional check, I summed together all rows from the
+above table with NBA in the league that had a non-0 digit in the
+hundreds spot, and obtained the value 8100+5400+33400+2800 = 4.97^{4},
+which is too large by 1000 dollars, and thus does not match our computed
+discrepancy. However, no other combination of the digits from will
+achieve a 7 in the hundreds place, further obscuring where the
+discrepancy may have arisen. If it was an error in my own data
+processing, it is likely to have occurred during or before the
+generation of the <code>sports_summary2</code> table, such as when
+initially processing the <code>donate_amount</code> column (though this
+still does not make it clear why the Democrat value would match the
+article while Republican does not, and only for the NBA).</p>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
@@ -1451,22 +1457,35 @@ does not, and only for the NBA).</p>
 table, though the NBA donation amounts and some aesthetic differences
 remain. Some challenges to reproducibility include the fact that more
 parties are included in the dataset than are reported in the
-tables/figures from the paper. This is somewhat addressed in the figure
-captions, but it was not immediately clear to me whether categories such
-as “Bipartisan, but mostly Republican” should be included or excluded
-from the Republican total amounts (and same for Democrat). Further, a
-slight challenge in reproducing Table 2 was in the encoding of the
-Leagues as a string that included all leagues represented. While this
-could be helpful in some contexts, it could have been easier for the
-coding to also have a series of 6 binary variables that specify whether
-the corresponding donor owns a team in a given league. Additionally, I
-did not find it immediately clear whether the “Total” column in Table 2
-corresponded to the total across all parties, or just the sum of
-Republican and Democrat amounts (though a visual check of the numbers
-strongly suggested that the Total was indeed just the sum of Republican
-and Democrat amounts). Further investigation is needed to more clearly
-determine the reason for the discrepancy in the NBA Republican total
-generated between this report and the FiveThirtyEight article.</p>
+tables/figures from the paper. This in itself is not a problem, but
+required a slight amount of “guessing and checking” to match the amounts
+from the article. The additional party names are somewhat addressed in
+the article figure captions, but it was not immediately clear to me
+whether categories such as “Bipartisan, but mostly Republican” should be
+included or excluded from the Republican total amounts (and same for
+Democrat).</p>
+<p>Further, a slight challenge in reproducing Table 2 was in the
+encoding of the Leagues as a string that included all leagues
+represented. While this could be helpful in some contexts, it could have
+been easier for the coding to also have a series of 6 binary variables
+that specify whether the corresponding donor owns a team in a given
+league. It is not clear whether this was part of the reason for the
+observed discrepancy in the table, but the need to process this variable
+to reproduce the table may have contributed to the difference.
+Additionally, I did not find it immediately clear whether the “Total”
+column in Table 2 corresponded to the total across all parties, or just
+the sum of Republican and Democrat amounts (though a visual check of the
+numbers strongly suggested that the Total was indeed just the sum of
+Republican and Democrat amounts). Further investigation is needed to
+more clearly determine the reason for the discrepancy in the NBA
+Republican total generated between this report and the FiveThirtyEight
+article.</p>
+<p>In total, the figure and table were almost entirely reproduced, and
+the slight discrepancy in one row of the table does not change any of
+the overall conclusions that would be drawn by a reader. In general, the
+dataset was mostly intuitive and allowed for easy replication of the
+table and figure, with only some relatively minor questions arising
+during the process.</p>
 </div>
 
 
