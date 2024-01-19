@@ -18,7 +18,7 @@ The aim of the following project is to recreate one table and one figure from th
 
 # Preparation
 
-To proceed with the analysis, we will first need to load any necessary packages and import the dataset from online. If the dataset is available locally, this option will instead be used to import the dataset. Note that the package `renv` is used to create and environment that saves the exact versions of each package used in the analysis. For completeness, the session info is also displayed at the end of this code chunk.
+To proceed with the analysis, we will first need to load any necessary packages and import the dataset from online. If the dataset is available locally within the `data` folder, this option will instead be used to import the dataset. Note that the package `renv` is used to create an environment that saves the exact versions of each package used in the analysis. For completeness, the session info is also displayed at the end of this code chunk.
 
 ```{r load_package_and_data, message = FALSE}
 # Begin by installing renv and setting up environment
@@ -54,7 +54,7 @@ To begin, we attempt to recreate the first figure that appears in the article, t
 kable(head(sports))
 ```
 
-From an inspection of the data, one can see that some processing is required to obtain the values needed to reproduce the figure. In particular, we will first need to process the `donate_amount` column from a string (removing symbols such as $ and ,) to a numeric value.
+From an inspection of the data, one can see that some processing is required to obtain the values needed to reproduce the figure. In particular, we will first need to process the `Amount` column from a string (removing symbols such as $ and ,) to a numeric value.
 
 ```{r clean_amount}
 # Process the donation amount by removing $ and , symbols
@@ -64,6 +64,8 @@ sports$donate_amount <- str_replace(sports$donate_amount, "\\,", "")
 sports$donate_amount <- str_replace(sports$donate_amount, "\\,", "")
 # Convert from character to numeric
 sports$donate_amount <- as.numeric(sports$donate_amount)
+# Confirm that this did not produce any NAs
+print(sum(is.na(sports$donate_amount)))
 ```
 
 Now that the donation amount has been made numeric (as the column `donate_amount`), we can proceed. To reproduce the figure, we will want to create a summary of amount donated within each election year and party. We will use the `group_by` function to get the total donations for each party-election year pair. We will then display the table to ensure we have the correct categories.
@@ -201,7 +203,7 @@ tab2_check <- sports_summary2 %>% filter(total_donated <= 8372300 - 8323600)
 kable(tab2_check)
 ```
 
-We can see that this filtering returns 16 rows, though none seem to exactly match the missing donation amount difference (`r 8372300 - 8323600`). It is interesting to note that the amount in the Democrat column and all other rows of the table returned identical values as the article, so it is not entirely clear why this discrepancy has emerged. One possible reason could be if there was a difference in how one of the "Bipartisan, but mostly Republican" PACs was coded between versions of the dataset (if multiple versions exist), though this is mostly speculative. 
+We can see that this filtering returns 16 rows, though none seem to exactly match the missing donation amount difference (`r 8372300 - 8323600`). It is interesting to note that the amount in the Democrat column and all other rows of the table returned identical values as the article, so it is not entirely clear why this single discrepancy has emerged. One possible reason could be if there was a difference in how one of the "Bipartisan, but mostly Republican" PACs was coded between versions of the dataset (if multiple versions exist), though this is mostly speculative. 
 
 As another additional check, I summed together all rows from the above table with NBA in the league that had a non-0 digit in the hundreds spot, and obtained the value 8100+5400+33400+2800 = `r 8100+5400+33400+2800`, which is too large by 1000 dollars, and thus does not match our computed discrepancy. However, no other combination of the digits from will achieve a 7 in the hundreds place, further obscuring where the discrepancy may have arisen. If it was an error in my own data processing, it is likely to have occurred during or before the generation of the `sports_summary2` table, such as when initially processing the `donate_amount` column (though this still does not make it clear why the Democrat value would match the article while Republican does not, and only for the NBA).
 
@@ -209,6 +211,6 @@ As another additional check, I summed together all rows from the above table wit
 
 I was able to replicate the main findings from both the figure and table, though the NBA donation amounts and some aesthetic differences remain. Some challenges to reproducibility include the fact that more parties are included in the dataset than are reported in the tables/figures from the paper. This in itself is not a problem, but required a slight amount of "guessing and checking" to match the amounts from the article. The additional party names are somewhat addressed in the article figure captions, but it was not immediately clear to me whether categories such as "Bipartisan, but mostly Republican" should be included or excluded from the Republican total amounts (and same for Democrat). 
 
-Further, a slight challenge in reproducing Table 2 was in the encoding of the Leagues as a string that included all leagues represented. While this could be helpful in some contexts, it could have been easier for the coding to also have a series of 6 binary variables that specify whether the corresponding donor owns a team in a given league. It is not clear whether this was part of the reason for the observed discrepancy in the table, but the need to process this variable to reproduce the table may have contributed to the difference. Additionally, I did not find it immediately clear whether the "Total" column in Table 2 corresponded to the total across all parties, or just the sum of Republican and Democrat amounts (though a visual check of the numbers strongly suggested that the Total was indeed just the sum of Republican and Democrat amounts). Further investigation is needed to more clearly determine the reason for the discrepancy in the NBA Republican total generated between this report and the FiveThirtyEight article.
+Further, a slight challenge in reproducing Table 2 was in the encoding of the Leagues as a string that included all leagues represented. While this could be helpful in some contexts, it could have been easier for the coding of Table 2 specifically to also have a series of 6 binary variables that specify whether the corresponding donor owns a team in a given league (though noting this would also be redundant information in the table, and may have indeed be why the original dataset does not include this information). It is not clear whether this was part of the reason for the observed discrepancy in the table, but the need to process this variable to reproduce the table may have contributed to the difference. Additionally, I did not find it immediately clear whether the "Total" column in Table 2 corresponded to the total across all parties, or just the sum of Republican and Democrat amounts (though a visual check of the numbers strongly suggested that the Total was indeed just the sum of Republican and Democrat amounts). Further investigation is needed to more clearly determine the reason for the discrepancy in the NBA Republican total generated between this report and the FiveThirtyEight article.
 
 In total, the figure and table were almost entirely reproduced, and the slight discrepancy in one row of the table does not change any of the overall conclusions that would be drawn by a reader. In general, the dataset was mostly intuitive and allowed for easy replication of the table and figure, with only some relatively minor questions arising during the process.
