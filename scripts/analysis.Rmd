@@ -1,0 +1,214 @@
+---
+title: "BST 270 Final Project"
+author: "Nick Birk"
+date: "1/19/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+The aim of the following project is to recreate one table and one figure from the FiveThirtyEight article:
+
+["Inside The Political Donation History Of Wealthy Sports Owners"](https://fivethirtyeight.com/features/inside-the-political-donation-history-of-wealthy-sports-owners/)
+
+
+# Preparation
+
+To proceed with the analysis, we will first need to load any necessary packages and import the dataset from online. If the dataset is available locally, this option will instead be used to import the dataset. Note that the package `renv` is used to create and environment that saves the exact versions of each package used in the analysis. For completeness, the session info is also displayed at the end of this code chunk.
+
+```{r load_package_and_data, message = FALSE}
+# Begin by installing renv and setting up environment
+if (!require('renv')) install.packages('renv')
+renv::init()
+
+# Install packages if they are missing, otherwise load
+if (!require('tidyverse')) install.packages('tidyverse')
+if (!require('ggplot2')) install.packages('ggplot2')
+if (!require('RCurl')) install.packages('RCurl')
+if (!require('knitr')) install.packages('knitr')
+
+# Import dataset locally, if available
+if (file.exists("../data/sports-political-donations.csv")){
+    sports <- read.csv("../data/sports-political-donations.csv")
+} else {
+    # Otherwise, import dataset from raw github file online
+   sports_url <- getURL("https://raw.githubusercontent.com/fivethirtyeight/data/master/sports-political-donations/sports-political-donations.csv")
+   sports <- read.csv(text = sports_url)
+}
+
+# Display session information
+sessionInfo()
+```
+
+
+# Part 1: Figure 1
+
+To begin, we attempt to recreate the first figure that appears in the article, titled "Team owners give largely to the GOP". To begin, we will observe the first few rows of the dataset to gain an understanding of what steps we will need to take to process the dataset.
+
+```{r first_inspect}
+# Print first few rows of the dataset to understand features of the data
+kable(head(sports))
+```
+
+From an inspection of the data, one can see that some processing is required to obtain the values needed to reproduce the figure. In particular, we will first need to process the `donate_amount` column from a string (removing symbols such as $ and ,) to a numeric value.
+
+```{r clean_amount}
+# Process the donation amount by removing $ and , symbols
+sports$donate_amount <- str_replace(sports$Amount, "\\$", "")
+sports$donate_amount <- str_replace(sports$donate_amount, "\\,", "")
+# Second call needed for amounts which originally included two "," symbols
+sports$donate_amount <- str_replace(sports$donate_amount, "\\,", "")
+# Convert from character to numeric
+sports$donate_amount <- as.numeric(sports$donate_amount)
+```
+
+Now that the donation amount has been made numeric (as the column `donate_amount`), we can proceed. To reproduce the figure, we will want to create a summary of amount donated within each election year and party. We will use the `group_by` function to get the total donations for each party-election year pair. We will then display the table to ensure we have the correct categories.
+
+```{r summarize_fig1, message = FALSE}
+# Need to summarize by party, year to get figure values
+sports_summary <- sports %>% group_by(Election.Year, Party) %>%
+  summarize(total_donated = sum(donate_amount))
+
+# We can see from inspecting this summary table that there are some extra categories which do not appear in the figure
+kable(sports_summary)
+```
+
+We can see from the above that there are some extra political parties that do not appear in the figure itself. Further, it may be helpful to take an additional step to obtain the proportions of donations for the given year, rather than the raw amount, since the figure proportions do not add up to 100% because of the excluded parties. We make these final processing steps below and display the resulting table:
+
+```{r summarize_fig1_more, message = FALSE}
+# Create an even smaller summary dataset that includes the proportion
+# Calculated as row amount / annual total
+
+# First, annual total across all parties is stored in a small table
+sports_annual_totals <- sports_summary %>% group_by(Election.Year) %>%
+  summarize(annual_total = sum(total_donated))
+# Join these values as new annual total column and then create proportion column
+sports_summary <- inner_join(sports_summary, sports_annual_totals)
+sports_summary <- sports_summary %>% mutate(donate_prop = total_donated/annual_total) %>% filter(Party %in% c("Republican", "Democrat"))
+
+# Display table for visual inspection
+kable(sports_summary)
+```
+
+Finally, we see that we have the values needed to recreate the figure, and proceed to do so:
+
+```{r plot_fig1}
+# Plot figure 1
+# Election Year is made a factor and donate_prop into a value between 0 and 100 for purely aesthetic reasons
+sports_summary %>% 
+  ggplot(aes(as.factor(Election.Year), round(100*donate_prop), fill = Party)) + geom_bar(stat = "identity") +
+  xlab("") + ylab("") + ggtitle("Team owners give largely to the GOP") +
+  scale_fill_manual(values = c("blue", "red"))
+```
+
+On a visual basis, the values in the plot seem to roughly correspond to the values of each bar in the original article. For completeness, we can also attempt to reproduce the value from the figure caption, stating that "Giants owner Charles Johnson's total contributions make up 32.1% of all Republican contributions"
+
+```{r johnson_prop}
+# Get the total sum of Republican donations across all years
+republican_summary <- sports_summary %>% filter(Party == "Republican")
+republican_total <- sum(republican_summary$total_donated)
+
+# Get the total sum of Johnson's donations to Republicans across all years
+johnson_summary <- sports %>% filter(Owner == "Charles Johnson", Party == "Republican")
+johnson_total <- sum(johnson_summary$donate_amount)
+
+# Print the proportion as a percentage, rounded to 1 decimal place.
+print(round(100*johnson_total/republican_total, 1))
+```
+
+Indeed, the computed percentage matches the reported amount exactly.
+
+# Part 2: Table 2
+
+We now attempt to reproduce the second table that appears in the article, titled "MLB owners have donated the most".
+
+To begin, we will need to summarize the total donations by league and party, rather than year.
+
+```{r, tab2_summary, message = FALSE}
+# We will reuse the donate_amount variable that we created previously
+# Similar summary table needed as before, but split by league and party instead of year and party
+sports_summary2 <- sports %>% group_by(League, Party) %>%
+  summarize(total_donated = sum(donate_amount))
+
+# Display the resulting table
+kable(sports_summary2)
+```
+
+This initial version of the table reveals that there are some categories which include multiple leagues, and that additional parties are included that do not appear in the article's table. To recreate the table exactly from the article, we will need to use some indicator that a row contains a given league. This is made somewhat more challenging than a standard text matching due to the presence of both "NBA" and "WNBA" as distinct leagues, and that some categories can contain multiple leagues (and thus should be double- or triple-counted). For our understanding of how to proceed, the different values of "League" are displayed below:
+
+```{r, league_summary}
+# Display the frequency table of League values
+kable(table(sports_summary2$League))
+```
+
+We can use these unique values to obtain the corresponding totals from our previous summary table as follows:
+
+```{r, league_party_totals}
+# Create vectors of the party total donations for each of the leagues, based on text matching
+# And combine into a single summary table
+tab2_summary <- data.frame(
+    League = c("MLB", "NASCAR", "NBA", "NFL", "NHL", "WNBA"),
+    # Match each of the League combinations for Republican donations
+    republican_league_totals = c(sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("MLB", "MLB, NASCAR", "MLB, NHL", "MLB, WNBA", "NBA, MLB")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("MLB, NASCAR", "NASCAR")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("NBA", "NBA, MLB", "NBA, NFL", "NBA, NFL, NHL", "NBA, NHL", "NBA, NHL, WNBA", "NBA, WNBA")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("NFL", "NHL, NFL", "NBA, NFL", "NBA, NFL, NHL")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("NHL", "MLB, NHL", "NBA, NFL, NHL", "NBA, NHL", "NBA, NHL, WNBA", "NHL, NFL")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Republican" & sports_summary2$League %in% c("WNBA", "NBA, WNBA", "NBA, NHL, WNBA", "MLB, WNBA")])
+                                ),
+    # Repeat for Democrat donations
+    democrat_league_totals = c(sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("MLB", "MLB, NASCAR", "MLB, NHL", "MLB, WNBA", "NBA, MLB")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("MLB, NASCAR", "NASCAR")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("NBA", "NBA, MLB", "NBA, NFL", "NBA, NFL, NHL", "NBA, NHL", "NBA, NHL, WNBA", "NBA, WNBA")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("NFL", "NHL, NFL", "NBA, NFL", "NBA, NFL, NHL")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("NHL", "MLB, NHL", "NBA, NFL, NHL", "NBA, NHL", "NBA, NHL, WNBA", "NHL, NFL")]),
+                              sum(sports_summary2$total_donated[sports_summary2$Party == "Democrat" & sports_summary2$League %in% c("WNBA", "NBA, WNBA", "NBA, NHL, WNBA", "MLB, WNBA")])
+                                )                            
+)
+kable(tab2_summary)
+```
+
+Finally, we can combine this information and compute the total column (by simply summming Republican and Democrat) to obtain the league total donation amounts. We also note that the table appears to be displayed in descending order of total amounts donated, so we follow the same convention.
+
+```{r, display_table2}
+# Mutate to add new column which sums republican and democrat donations
+tab2 <- tab2_summary %>% mutate(Total = republican_league_totals + democrat_league_totals)
+
+# Update column names to reflect article
+colnames(tab2) <- c("League", "To Republicans", "To Democrats", "Total")
+
+# Reorder rows to match article
+# This can be done manually as
+#tab2 <- tab2[c(1, 3, 5, 4, 6, 2),]
+# But can also assume that the table is sorted by the Total column in descending order
+tab2 <- tab2 %>% arrange(desc(Total))
+
+# Display final table
+kable(tab2)
+```
+
+The values in the table appear to mostly match the original article, including the ordering of rows, with the exception of the Republican donation amount for the NBA (and thus, the Total for this row as well). The Republican amount displayed in the article is 8,372,300,  while the amount we have computed is 8,323,600. We can check the summary table for any donation amounts less than this difference to see if this reveals any potential missed rows as the reason for the discrepancy:
+
+```{r, investigate_table2}
+# filter summary table to include only rows from the summary table with donation amount less than the observed difference
+tab2_check <- sports_summary2 %>% filter(total_donated <= 8372300 - 8323600)
+
+# Display
+kable(tab2_check)
+```
+
+We can see that this filtering returns 16 rows, though none seem to exactly match the missing donation amount difference (`r 8372300 - 8323600`). It is interesting to note that the amount in the Democrat column and all other rows of the table returned identical values as the article, so it is not entirely clear why this discrepancy has emerged. One possible reason could be if there was a difference in how one of the "Bipartisan, but mostly Republican" PACs was coded between versions of the dataset (if multiple versions exist), though this is mostly speculative. 
+
+As another additional check, I summed together all rows from the above table with NBA in the league that had a non-0 digit in the hundreds spot, and obtained the value 8100+5400+33400+2800 = `r 8100+5400+33400+2800`, which is too large by 1000 dollars, and thus does not match our computed discrepancy. However, no other combination of the digits from will achieve a 7 in the hundreds place, further obscuring where the discrepancy may have arisen. If it was an error in my own data processing, it is likely to have occurred during or before the generation of the `sports_summary2` table, such as when initially processing the `donate_amount` column (though this still does not make it clear why the Democrat value would match the article while Republican does not, and only for the NBA).
+
+# Conclusion 
+
+I was able to replicate the main findings from both the figure and table, though the NBA donation amounts and some aesthetic differences remain. Some challenges to reproducibility include the fact that more parties are included in the dataset than are reported in the tables/figures from the paper. This in itself is not a problem, but required a slight amount of "guessing and checking" to match the amounts from the article. The additional party names are somewhat addressed in the article figure captions, but it was not immediately clear to me whether categories such as "Bipartisan, but mostly Republican" should be included or excluded from the Republican total amounts (and same for Democrat). 
+
+Further, a slight challenge in reproducing Table 2 was in the encoding of the Leagues as a string that included all leagues represented. While this could be helpful in some contexts, it could have been easier for the coding to also have a series of 6 binary variables that specify whether the corresponding donor owns a team in a given league. It is not clear whether this was part of the reason for the observed discrepancy in the table, but the need to process this variable to reproduce the table may have contributed to the difference. Additionally, I did not find it immediately clear whether the "Total" column in Table 2 corresponded to the total across all parties, or just the sum of Republican and Democrat amounts (though a visual check of the numbers strongly suggested that the Total was indeed just the sum of Republican and Democrat amounts). Further investigation is needed to more clearly determine the reason for the discrepancy in the NBA Republican total generated between this report and the FiveThirtyEight article.
+
+In total, the figure and table were almost entirely reproduced, and the slight discrepancy in one row of the table does not change any of the overall conclusions that would be drawn by a reader. In general, the dataset was mostly intuitive and allowed for easy replication of the table and figure, with only some relatively minor questions arising during the process.
